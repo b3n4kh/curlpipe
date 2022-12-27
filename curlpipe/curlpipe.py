@@ -39,9 +39,9 @@ class CurlPipeServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
         (null, good, bad, min_jump, max_variance) = params
 
-        null = open(self.scripts_dir + null, "r").read()  # Base file with a delay
-        good = open(self.scripts_dir + good, "r").read()  # Non malicious payload
-        bad = open(self.scripts_dir + bad, "r").read()  # Malicious payload
+        null = open(os.path.join(self.scripts_dir, null), "r").read()  # Base file with a delay
+        good = open(os.path.join(self.scripts_dir, good), "r").read()  # Non malicious payload
+        bad = open(os.path.join(self.scripts_dir, bad), "r").read()  # Malicious payload
 
         self.payloads[uri] = (null, good, bad, min_jump, max_variance)
 
