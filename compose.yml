@@ -1,0 +1,5 @@
+services:
+  curlpipe:
+    image: ghcr.io/b3n4kh/curlpipe
+    ports:
+      - "127.0.0.1:5555:5555"

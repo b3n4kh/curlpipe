@@ -13,12 +13,12 @@ class CurlPipeServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         """Accepts a tuple of (HOST, PORT)"""
 
         # Socket timeout
-        self.socket_timeout = os.getenv("SOCKET_TIMEOUT", 10)
+        self.socket_timeout = int(os.getenv("SOCKET_TIMEOUT", 10))
 
         # Outbound tcp socket buffer size
-        self.buffer_size = os.getenv("BUFFER_SIZE", 87380)
+        self.buffer_size = int(os.getenv("BUFFER_SIZE", 87380))
 
-        self.max_padding = os.getenv("MAX_PADDING", 32)
+        self.max_padding = int(os.getenv("MAX_PADDING", 32))
 
         self.scripts_dir = os.getenv("SCRIPTS_DIR", "scripts/")
 
@@ -153,7 +153,10 @@ def main():
     SERVER.setscript("/bad", ("ticker.sh", "bad.sh", "bad.sh", 1.0, 0.1))
 
     print(f"Listening on {HOST} {PORT}")
-    SERVER.serve_forever()
+    try:
+        SERVER.serve_forever()
+    except KeyboardInterrupt:
+        exit(0)
 
 
 if __name__ == "__main__":
